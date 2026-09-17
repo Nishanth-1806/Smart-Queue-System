@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Queue — Google Maps Restaurant Wait Times</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --primary-light: #e8f0fe;
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --sidebar-bg: #ffffff;
+      --text: #202124;
+      --text-secondary: #5f6368;
+      --text-muted: #80868b;
+      --border: #dadce0;
+      --border-light: #f1f3f4;
+      
+      --wait-low: #1e8e3e;
+      --wait-low-bg: #e6f4ea;
+      --wait-med: #d97706;
+      --wait-med-bg: #fef3c7;
+      --wait-high: #d93025;
+      --wait-high-bg: #fce8e6;
+
+      --shadow-sm: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+      --shadow-md: 0 2px 6px 2px rgba(60,64,67,0.15);
+      --shadow-lg: 0 4px 12px rgba(60,64,67,0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Bar */
+    header {
+      height: 60px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 1000;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 19px;
+      color: #1a73e8;
+      letter-spacing: -0.5px;
+      cursor: pointer;
+    }
+    .brand svg {
+      width: 28px;
+      height: 28px;
+      fill: #1a73e8;
+    }
+    .brand span.tag {
+      font-size: 11px;
+      font-weight: 700;
+      background: #e8f0fe;
+      color: #1967d2;
+      padding: 3px 8px;
+      border-radius: 12px;
+      margin-left: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Live 1-Minute Countdown Indicator */
+    .live-sync-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8f9fa;
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 24px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .live-pulse {
+      width: 8px;
+      height: 8px;
+      background: #1e8e3e;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.7);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(30, 142, 62, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(30, 142, 62, 0); }
+    }
+    .countdown-num {
+      font-family: 'JetBrains Mono', monospace;
+      color: #1a73e8;
+      font-weight: 700;
+    }
+
+    .header-links a {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .header-links a:hover {
+      background: var(--border-light);
+      color: var(--text);
+    }
+
+    /* App Container */
+    .app-body {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar */
+    .sidebar {
+      width: 420px;
+      min-width: 380px;
+      max-width: 460px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      z-index: 500;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.25s ease;
+    }
+
+    /* Search & Filter Section */
+    .search-panel {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .search-box-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .area-select-wrap {
+      flex: 0 0 130px;
+      position: relative;
+    }
+    .area-select {
+      width: 100%;
+      height: 42px;
+      padding: 0 28px 0 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #f8f9fa;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .area-select:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+    .area-select-wrap::after {
+      content: "▾";
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      width: 18px;
+      height: 18px;
+      fill: var(--text-muted);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      height: 42px;
+      padding: 0 34px 0 38px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #f8f9fa;
+      font-family: inherit;
+      font-size: 13.5px;
+      color: var(--text);
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+    }
+    .clear-btn {
+      position: absolute;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: none;
+      padding: 4px;
+    }
+
+    /* Filter Chips */
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .filter-chips::-webkit-scrollbar { display: none; }
+    .chip {
+      padding: 5px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #f8f9fa;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .chip:hover {
+      background: #e8eaed;
+      color: var(--text);
+    }
+    .chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    /* Sidebar Content Views */
+    .sidebar-views {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    /* Restaurant List View */
+    .restaurant-list {
+      display: flex;
+      flex-direction: column;
+    }
+    .list-header {
+      padding: 12px 16px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rest-card {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      gap: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .rest-card:hover {
+      background: #f8f9fa;
+    }
+    .rest-card.active {
+      background: #e8f0fe;
+      border-left: 4px solid var(--primary);
+    }
+
+    .card-img {
+      width: 76px;
+      height: 76px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #e0e0e0;
+      flex-shrink: 0;
+    }
+
+    .card-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 3px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 190px;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .rating-badge {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      color: #e37400;
+      font-weight: 700;
+    }
+    .card-cuisine {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+    }
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-address {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+    }
+
+    /* Wait Time Badges */
+    .wait-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .wait-pill.Low {
+      background: var(--wait-low-bg);
+      color: var(--wait-low);
+    }
+    .wait-pill.Medium {
+      background: var(--wait-med-bg);
+      color: var(--wait-med);
+    }
+    .wait-pill.High, .wait-pill.Peak {
+      background: var(--wait-high-bg);
+      color: var(--wait-high);
+    }
+
+    /* Restaurant Detail Inspector */
+    .detail-view {
+      display: none;
+      padding: 0;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .detail-hero {
+      width: 100%;
+      height: 180px;
+      position: relative;
+      background: #202124;
+    }
+    .detail-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .back-btn {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(4px);
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: transform 0.15s;
+    }
+    .back-btn:hover { transform: scale(1.06); }
+    .back-btn svg { width: 18px; height: 18px; fill: var(--text); }
+
+    .detail-body {
+      padding: 20px;
+    }
+
+    .detail-header {
+      margin-bottom: 18px;
+    }
+    .detail-name {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .detail-sub-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    /* Live Wait Time Hero Card */
+    .live-wait-card {
+      background: #f8f9fa;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .live-wait-card.Low { border-color: var(--wait-low); background: #f4fbf6; }
+    .live-wait-card.Medium { border-color: var(--wait-med); background: #fffcf4; }
+    .live-wait-card.High, .live-wait-card.Peak { border-color: var(--wait-high); background: #fff5f5; }
+
+    .live-wait-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .live-wait-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .live-wait-sync {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .live-wait-main {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .wait-big-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+    .wait-big-number.Low { color: var(--wait-low); }
+    .wait-big-number.Medium { color: var(--wait-med); }
+    .wait-big-number.High, .wait-big-number.Peak { color: var(--wait-high); }
+
+    .wait-big-unit {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    /* Capacity Progress Bar */
+    .capacity-info {
+      margin-top: 10px;
+    }
+    .capacity-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+    .progress-bar-bg {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+
+    /* Action Buttons */
+    .detail-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      background: #f8f9fa;
+      border-color: #c0c4cc;
+    }
+    .btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+    .btn.primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    /* Chart Section */
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chart-box {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+      height: 190px;
+      position: relative;
+    }
+
+    /* Report Section */
+    .report-box {
+      background: #f8f9fa;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .report-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .report-input {
+      width: 100px;
+      height: 38px;
+      padding: 0 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      outline: none;
+    }
+    .report-input:focus { border-color: var(--primary); }
+    .report-status-msg {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    /* Info Meta list */
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text);
+      margin-top: 16px;
+      border-top: 1px solid var(--border-light);
+      padding-top: 16px;
+    }
+    .info-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .info-icon {
+      width: 18px;
+      height: 18px;
+      fill: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Right Map Container */
+    .map-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: #e5e3df;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+    }
+
+    /* Floating Map Controls */
+    .map-floating-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 400;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: var(--shadow-md);
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .legend-dot.low { background: var(--wait-low); }
+    .legend-dot.med { background: var(--wait-med); }
+    .legend-dot.high { background: var(--wait-high); }
+
+    /* Custom Leaflet Map Pin */
+    .custom-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .custom-marker:hover {
+      transform: scale(1.15) translateY(-4px);
+      z-index: 999 !important;
+    }
+    .custom-marker.active {
+      transform: scale(1.22) translateY(-6px);
+      z-index: 1000 !important;
+    }
+    .marker-bubble {
+      padding: 4px 8px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffffff;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      border: 2px solid #ffffff;
+    }
+    .marker-bubble.Low { background: var(--wait-low); }
+    .marker-bubble.Medium { background: var(--wait-med); }
+    .marker-bubble.High, .marker-bubble.Peak { background: var(--wait-high); }
+
+    .marker-pin {
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid #ffffff;
+      margin-top: -1px;
+    }
+    .marker-bubble.Low + .marker-pin { border-top-color: var(--wait-low); }
+    .marker-bubble.Medium + .marker-pin { border-top-color: var(--wait-med); }
+    .marker-bubble.High + .marker-pin { border-top-color: var(--wait-high); }
+    .marker-bubble.Peak + .marker-pin { border-top-color: var(--wait-high); }
+
+    /* Pulsing selection circle */
+    .pulse-ring {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(26, 115, 232, 0.35);
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      animation: pinPulse 1.6s infinite;
+    }
+    @keyframes pinPulse {
+      0% { transform: translateX(-50%) scale(0.6); opacity: 1; }
+      100% { transform: translateX(-50%) scale(1.5); opacity: 0; }
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      fill: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .app-body {
+        flex-direction: column-reverse;
+      }
+      .sidebar {
+        width: 100%;
+        max-width: 100%;
+        height: 50%;
+      }
+      .map-container {
+        height: 50%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand" onclick="resetView()">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+      </svg>
+      Smart Queue <span class="tag">Maps</span>
+    </div>
+
+    <div class="header-center">
+      <div class="live-sync-badge" title="Queue and wait times automatically update every 60 seconds">
+        <span class="live-pulse"></span>
+        <span>LIVE UPDATES · Next in <span class="countdown-num" id="countdownSec">60</span>s</span>
+      </div>
+    </div>
+
+    <div class="header-links">
+      <a href="/docs" target="_blank" title="View Swagger API docs">API Docs</a>
+      <a href="javascript:void(0)" onclick="refreshAllData(true)">🔄 Sync Now</a>
+    </div>
+  </header>
+
+  <!-- Main Body -->
+  <div class="app-body">
+
+    <!-- Left Sidebar: Search, Filters, List & Details -->
+    <div class="sidebar">
+      
+      <!-- Search & Filters Header -->
+      <div class="search-panel">
+        <div class="search-box-row">
+          <!-- Area Selector -->
+          <div class="area-select-wrap">
+            <select class="area-select" id="areaSelect" onchange="onFilterChanged()">
+              <option value="All">📍 All Areas</option>
+            </select>
+          </div>
+
+          <!-- Restaurant / Food Search Input -->
+          <div class="search-input-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24">
+              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input 
+              type="text" 
+              class="search-input" 
+              id="searchInput" 
+              placeholder="Search restaurant, cuisine, pizza, sushi..." 
+              oninput="onSearchInput()"
+            />
+            <button class="clear-btn" id="clearBtn" onclick="clearSearch()">✕</button>
+          </div>
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="filter-chips" id="filterChips">
+          <div class="chip active" onclick="setFilterCategory('All', this)">All</div>
+          <div class="chip" onclick="setFilterCategory('fast', this)">⚡ Fast (<10 min)</div>
+          <div class="chip" onclick="setFilterCategory('Italian', this)">🍕 Italian</div>
+          <div class="chip" onclick="setFilterCategory('Japanese', this)">🍣 Japanese</div>
+          <div class="chip" onclick="setFilterCategory('Café', this)">☕ Cafés</div>
+          <div class="chip" onclick="setFilterCategory('Seafood', this)">🦐 Seafood</div>
+          <div class="chip" onclick="setFilterCategory('American', this)">🍔 BBQ & Grill</div>
+          <div class="chip" onclick="setFilterCategory('Mexican', this)">🌮 Mexican</div>
+          <div class="chip" onclick="setFilterCategory('Indian', this)">🍛 Indian</div>
+        </div>
+      </div>
+
+      <!-- Views Container (List View vs Detail View) -->
+      <div class="sidebar-views">
+        
+        <!-- 1. Restaurant List View -->
+        <div class="restaurant-list" id="restaurantListView">
+          <div class="list-header">
+            <span id="resultsCount">Loading restaurants...</span>
+            <span id="sortLabel">Sorted by Relevance</span>
+          </div>
+          <div id="cardsContainer"></div>
+        </div>
+
+        <!-- 2. Restaurant Detail Inspector View -->
+        <div class="detail-view" id="detailView">
+          <div class="detail-hero">
+            <button class="back-btn" onclick="backToList()" title="Back to restaurant list">
+              <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </button>
+            <img id="detailImg" src="" alt="Restaurant">
+          </div>
+
+          <div class="detail-body">
+            <div class="detail-header">
+              <h2 class="detail-name" id="detailName">Restaurant Name</h2>
+              <div class="detail-sub-meta">
+                <span class="rating-badge">★ <span id="detailRating">4.8</span></span>
+                <span>•</span>
+                <span id="detailPrice">$$$</span>
+                <span>•</span>
+                <span id="detailCategory">Italian</span>
+                <span>•</span>
+                <span id="detailArea">Downtown</span>
+              </div>
+              <p style="font-size: 13px; color: var(--text-secondary);" id="detailCuisine">Cuisine specialties</p>
+            </div>
+
+            <!-- Live Wait Time Dynamic Box -->
+            <div class="live-wait-card" id="detailWaitCard">
+              <div class="live-wait-header">
+                <div class="live-wait-title">
+                  <span class="live-pulse"></span>
+                  <span>LIVE QUEUE ESTIMATE</span>
+                </div>
+                <div class="live-wait-sync" id="detailUpdatedTime">Updated just now</div>
+              </div>
+
+              <div class="live-wait-main">
+                <div class="wait-big-number" id="detailWaitMinutes">~12</div>
+                <div>
+                  <div class="wait-big-unit">MINUTES WAIT</div>
+                  <div class="wait-pill" id="detailRushPill">Medium Rush</div>
+                </div>
+              </div>
+
+              <!-- Live Occupancy Bar -->
+              <div class="capacity-info">
+                <div class="capacity-labels">
+                  <span>Current Seating</span>
+                  <span id="detailCapacityLabel">28 / 45 seats occupied</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="detailProgressBar" style="width: 60%; background: var(--wait-med);"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="detail-actions">
+              <a href="#" class="btn primary" id="kioskBtn" target="_blank">
+                <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+                Display Board
+              </a>
+              <a href="#" class="btn" id="directionsBtn" target="_blank">
+                <svg viewBox="0 0 24 24"><path d="M21.71 11.29l-9-9a.996.996 0 0 0-1.41 0l-9 9a.996.996 0 0 0 0 1.41l9 9c.39.39 1.02.39 1.41 0l9-9a.996.996 0 0 0 0-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/></svg>
+                Directions
+              </a>
+            </div>
+
+            <!-- Popular Times Rush Chart -->
+            <div class="section-title">
+              <span>Hourly Rush Forecast</span>
+              <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 500;">Google Popular Times</span>
+            </div>
+            <div class="chart-box">
+              <canvas id="rushChart"></canvas>
+            </div>
+
+            <!-- Self-Report Wait Time -->
+            <div class="report-box">
+              <div style="font-size: 13px; font-weight: 700;">Are you at this restaurant?</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Report your actual wait time to help others:</div>
+              <div class="report-row">
+                <input type="number" class="report-input" id="reportMinutes" placeholder="Minutes" min="0" max="180">
+                <button class="btn primary" style="padding: 0 14px; height: 38px;" onclick="submitReport()">Submit</button>
+              </div>
+              <div class="report-status-msg" id="reportMsg"></div>
+            </div>
+
+            <!-- Contact & Hours Meta -->
+            <div class="info-list">
+              <div class="info-item">
+                <svg class="info-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                <div id="detailAddress">452 Market Street, Downtown, San Francisco</div>
+              </div>
+              <div class="info-item">
+                <svg class="info-icon" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                <div id="detailHours">Open today: 11:30 AM – 10:30 PM</div>
+              </div>
+              <div class="info-item">
+                <svg class="info-icon" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                <div id="detailPhone">+1 (415) 555-0142</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right Side: Google Maps Interactive Map -->
+    <div class="map-container">
+      <div id="map"></div>
+
+      <!-- Map Floating Legend -->
+      <div class="map-floating-panel">
+        <span>Live Rush:</span>
+        <div class="legend-item"><span class="legend-dot low"></span> &lt;10m Wait</div>
+        <div class="legend-item"><span class="legend-dot med"></span> 10–25m</div>
+        <div class="legend-item"><span class="legend-dot high"></span> &gt;25m Busy</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    
+    // Application State
+    let allLocations = [];
+    let filteredLocations = [];
+    let selectedLocationId = null;
+    let currentCategoryFilter = "All";
+    let map = null;
+    let markersLayer = null;
+    let markersMap = {};
+    let chartInstance = null;
+    let countdownTimer = 60;
+
+    // Default map center (San Francisco dining district)
+    const DEFAULT_CENTER = [37.7885, -122.4120];
+    const DEFAULT_ZOOM = 14;
+
+    // 1. Initialize Map
+    function initMap() {
+      // CartoDB Voyager tiles provide a modern, high-contrast, clean Google Maps-style cartography
+      map = L.map('map', {
+        zoomControl: false
+      }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap contributors',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+    }
+
+    // 2. Fetch Areas from API
+    async function loadAreas() {
+      try {
+        const res = await fetch(`${API_BASE}/api/areas`);
+        if (!res.ok) return;
+        const areas = await res.json();
+        const select = document.getElementById("areaSelect");
+        select.innerHTML = '<option value="All">📍 All Areas</option>';
+        areas.forEach(a => {
+          const opt = document.createElement("option");
+          opt.value = a;
+          opt.textContent = a;
+          select.appendChild(opt);
+        });
+      } catch (e) {
+        console.error("Failed to load areas:", e);
+      }
+    }
+
+    // 3. Fetch all Locations
+    async function fetchLocations() {
+      try {
+        const res = await fetch(`${API_BASE}/api/locations`);
+        if (!res.ok) throw new Error("API error: " + res.status);
+        allLocations = await res.json();
+        applyFilters();
+      } catch (e) {
+        console.error("Failed to fetch locations:", e);
+        document.getElementById("cardsContainer").innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            <p><strong>Cannot reach Smart Queue backend.</strong><br>Ensure uvicorn is running on port 8000.</p>
+          </div>
+        `;
+      }
+    }
+
+    // 4. Filtering and Search Logic
+    function applyFilters() {
+      const areaVal = document.getElementById("areaSelect").value;
+      const searchVal = document.getElementById("searchInput").value.trim().toLowerCase();
+
+      filteredLocations = allLocations.filter(loc => {
+        // Area filter
+        if (areaVal !== "All" && loc.area.toLowerCase() !== areaVal.toLowerCase()) {
+          return false;
+        }
+
+        // Category / Fast filter chip
+        if (currentCategoryFilter === "fast") {
+          if (loc.estimated_wait_minutes > 10) return false;
+        } else if (currentCategoryFilter !== "All") {
+          const cat = (loc.category || "").toLowerCase();
+          const matchCat = cat.includes(currentCategoryFilter.toLowerCase());
+          if (!matchCat) return false;
+        }
+
+        // Search text
+        if (searchVal) {
+          const name = (loc.name || "").toLowerCase();
+          const cuisine = (loc.cuisine || "").toLowerCase();
+          const address = (loc.address || "").toLowerCase();
+          const area = (loc.area || "").toLowerCase();
+          const category = (loc.category || "").toLowerCase();
+
+          const match = name.includes(searchVal) || 
+                        cuisine.includes(searchVal) || 
+                        address.includes(searchVal) || 
+                        area.includes(searchVal) || 
+                        category.includes(searchVal);
+          if (!match) return false;
+        }
+
+        return true;
+      });
+
+      renderCards(filteredLocations);
+      renderMapMarkers(filteredLocations);
+
+      // If currently selected location is in list, keep it; if not, keep detail open but markers synced
+      if (selectedLocationId) {
+        const found = allLocations.find(l => l.id === selectedLocationId);
+        if (found) updateDetailView(found);
+      }
+    }
+
+    // 5. Render Restaurant Cards in Left Sidebar
+    function renderCards(locations) {
+      const container = document.getElementById("cardsContainer");
+      const countEl = document.getElementById("resultsCount");
+      countEl.textContent = `${locations.length} restaurant${locations.length === 1 ? '' : 's'} found`;
+
+      if (locations.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <p>No restaurants match your search criteria.<br>Try adjusting your search or area filter.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = "";
+      locations.forEach(loc => {
+        const card = document.createElement("div");
+        card.className = `rest-card ${loc.id === selectedLocationId ? 'active' : ''}`;
+        card.id = `card-${loc.id}`;
+        card.onclick = () => selectRestaurant(loc.id, true);
+
+        const imgUrl = loc.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&q=80';
+
+        card.innerHTML = `
+          <img class="card-img" src="${imgUrl}" alt="${loc.name}" loading="lazy" />
+          <div class="card-info">
+            <div class="card-title-row">
+              <div class="card-title" title="${loc.name}">${loc.name}</div>
+              <span class="wait-pill ${loc.rush_level}">~${loc.estimated_wait_minutes} min</span>
+            </div>
+            <div class="card-meta">
+              <span class="rating-badge">★ ${loc.rating || 4.7}</span>
+              <span>•</span>
+              <span>${loc.price_level || '$$'}</span>
+              <span>•</span>
+              <span>${loc.category}</span>
+            </div>
+            <div class="card-cuisine">${loc.cuisine || 'Popular Specialties'}</div>
+            <div class="card-footer">
+              <span class="card-address">📍 ${loc.area || loc.address}</span>
+              <span style="font-size:11.5px; font-weight:600; color:var(--text-muted);">${loc.current_count}/${loc.capacity} seats</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // 6. Render Google Maps-Style Custom Pins on Map
+    function renderMapMarkers(locations) {
+      markersLayer.clearLayers();
+      markersMap = {};
+
+      const bounds = [];
+
+      locations.forEach(loc => {
+        if (!loc.lat || !loc.lng) return;
+
+        const isSelected = loc.id === selectedLocationId;
+        const iconHtml = `
+          <div class="custom-marker ${isSelected ? 'active' : ''}" id="marker-${loc.id}">
+            ${isSelected ? '<div class="pulse-ring"></div>' : ''}
+            <div class="marker-bubble ${loc.rush_level}">
+              <span>~${loc.estimated_wait_minutes}m</span>
+            </div>
+            <div class="marker-pin"></div>
+          </div>
+        `;
+
+        const customIcon = L.divIcon({
+          className: 'custom-div-icon',
+          html: iconHtml,
+          iconSize: [60, 42],
+          iconAnchor: [30, 40]
+        });
+
+        const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(markersLayer);
+        
+        marker.on('click', () => {
+          selectRestaurant(loc.id, false);
+        });
+
+        markersMap[loc.id] = marker;
+        bounds.push([loc.lat, loc.lng]);
+      });
+
+      // Fit map bounds to show all markers if not focused on one
+      if (bounds.length > 0 && !selectedLocationId) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      }
+    }
+
+    // 7. Select Restaurant and Open Inspector
+    async function selectRestaurant(id, flyToMap = true) {
+      selectedLocationId = id;
+      const loc = allLocations.find(l => l.id === id);
+      if (!loc) return;
+
+      // Highlight card in list
+      document.querySelectorAll('.rest-card').forEach(c => c.classList.remove('active'));
+      const activeCard = document.getElementById(`card-${id}`);
+      if (activeCard) {
+        activeCard.classList.add('active');
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // Re-render markers so the active pin gets the glowing pulse ring
+      renderMapMarkers(filteredLocations);
+
+      // Smoothly pan & fly the map to the selected restaurant
+      if (loc.lat && loc.lng) {
+        map.flyTo([loc.lat, loc.lng], 16, {
+          animate: true,
+          duration: 1.2
+        });
+      }
+
+      // Show detail view
+      document.getElementById("restaurantListView").style.display = "none";
+      document.getElementById("detailView").style.display = "block";
+
+      updateDetailView(loc);
+      loadHourlyChart(loc.id);
+    }
+
+    // 8. Update Detail View Data
+    function updateDetailView(loc) {
+      document.getElementById("detailName").textContent = loc.name;
+      document.getElementById("detailImg").src = loc.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&q=80';
+      document.getElementById("detailRating").textContent = loc.rating || 4.8;
+      document.getElementById("detailPrice").textContent = loc.price_level || '$$';
+      document.getElementById("detailCategory").textContent = loc.category;
+      document.getElementById("detailArea").textContent = loc.area || 'Downtown';
+      document.getElementById("detailCuisine").textContent = loc.cuisine || 'Fresh cuisine & dining';
+      document.getElementById("detailAddress").textContent = `${loc.address}, ${loc.area}, ${loc.city || 'San Francisco'}`;
+      document.getElementById("detailHours").textContent = `Open: ${loc.hours || '11:00 AM - 10:30 PM'}`;
+      document.getElementById("detailPhone").textContent = loc.phone || '+1 (415) 555-0100';
+
+      // Live Wait Time
+      const waitMinutes = loc.estimated_wait_minutes;
+      const rush = loc.rush_level;
+      const waitBox = document.getElementById("detailWaitCard");
+      const waitNum = document.getElementById("detailWaitMinutes");
+      const rushPill = document.getElementById("detailRushPill");
+
+      waitBox.className = `live-wait-card ${rush}`;
+      waitNum.className = `wait-big-number ${rush}`;
+      waitNum.textContent = `~${waitMinutes}`;
+      rushPill.className = `wait-pill ${rush}`;
+      rushPill.textContent = `${rush.toUpperCase()} CROWD`;
+
+      // Occupancy Progress
+      const pct = Math.min(100, Math.round((loc.current_count / loc.capacity) * 100));
+      document.getElementById("detailCapacityLabel").textContent = `${loc.current_count} / ${loc.capacity} seats occupied (${pct}%)`;
+      const fill = document.getElementById("detailProgressBar");
+      fill.style.width = `${pct}%`;
+      fill.style.background = rush === 'Low' ? 'var(--wait-low)' : (rush === 'Medium' ? 'var(--wait-med)' : 'var(--wait-high)');
+
+      // Last updated
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: '#5f6368',
+                  font: { size: 10 },
+                  maxRotation: 0,
+                  autoSkip: true,
+                  maxTicksLimit: 8
+                }
+              },
+              y: {
+                grid: { color: '#f1f3f4' },
+                ticks: { color: '#5f6368', font: { size: 10 } }
+              }
+            }
+          }
+        });
+      } catch (e) {
+        console.error("Failed to load chart data:", e);
+      }
+    }
+
+    // 10. Back to Restaurant List
+    function backToList() {
+      selectedLocationId = null;
+      document.getElementById("detailView").style.display = "none";
+      document.getElementById("restaurantListView").style.display = "block";
+      renderMapMarkers(filteredLocations);
+      document.querySelectorAll('.rest-card').forEach(c => c.classList.remove('active'));
+    }
+
+    // 11. Search and Filter Event Handlers
+    function onSearchInput() {
+      const val = document.getElementById("searchInput").value;
+      document.getElementById("clearBtn").style.display = val ? "block" : "none";
+      applyFilters();
+    }
+
+    function clearSearch() {
+      document.getElementById("searchInput").value = "";
+      document.getElementById("clearBtn").style.display = "none";
+      applyFilters();
+    }
+
+    function onFilterChanged() {
+      applyFilters();
+    }
+
+    function setFilterCategory(cat, el) {
+      currentCategoryFilter = cat;
+      document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      applyFilters();
+    }
+
+    function resetView() {
+      document.getElementById("searchInput").value = "";
+      document.getElementById("clearBtn").style.display = "none";
+      document.getElementById("areaSelect").value = "All";
+      currentCategoryFilter = "All";
+      document.querySelectorAll('.filter-chips .chip').forEach((c, idx) => {
+        if (idx === 0) c.classList.add('active');
+        else c.classList.remove('active');
+      });
+      backToList();
+      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      applyFilters();
+    }
+
+    // 12. Submit Wait Time Report
+    async function submitReport() {
+      if (!selectedLocationId) return;
+      const input = document.getElementById("reportMinutes");
+      const msg = document.getElementById("reportMsg");
+      const minutes = parseInt(input.value, 10);
+
+      if (!minutes || minutes < 0) {
+        msg.style.color = "var(--wait-high)";
+        msg.textContent = "Please enter a valid number of minutes.";
+        return;
+      }
+
+      try {
+        await fetch(`${API_BASE}/api/report`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ location_id: selectedLocationId, wait_minutes: minutes })
+        });
+        msg.style.color = "var(--wait-low)";
+        msg.textContent = "✓ Thanks! Your wait time has been reported.";
+        input.value = "";
+        setTimeout(() => { msg.textContent = ""; }, 4000);
+      } catch (e) {
+        msg.style.color = "var(--wait-high)";
+        msg.textContent = "Failed to submit report. Try again.";
+      }
+    }
+
+    // 13. Live 1-Minute Auto-Refresh Engine
+    async function refreshAllData(showIndicator = false) {
+      countdownTimer = 60;
+      document.getElementById("countdownSec").textContent = countdownTimer;
+      await fetchLocations();
+    }
+
+    // Countdown timer tick every 1 second
+    setInterval(() => {
+      countdownTimer--;
+      if (countdownTimer <= 0) {
+        refreshAllData();
+      } else {
+        document.getElementById("countdownSec").textContent = countdownTimer;
+      }
+    }, 1000);
+
+    // Initial Startup
+    window.addEventListener('DOMContentLoaded', async () => {
+      initMap();
+      await loadAreas();
+      await fetchLocations();
+    });
+  </script>
+</body>
+</html>

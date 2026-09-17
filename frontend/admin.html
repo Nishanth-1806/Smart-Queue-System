@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Queue — Admin Control Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --primary-light: #e8f0fe;
+      --success: #1e8e3e;
+      --success-bg: #e6f4ea;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #d93025;
+      --danger-bg: #fce8e6;
+      --info: #6366f1;
+      --info-bg: #eef2ff;
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --text: #202124;
+      --text-secondary: #5f6368;
+      --text-muted: #80868b;
+      --border: #dadce0;
+      --border-light: #e8eaed;
+      --sidebar-bg: #1a1d23;
+      --sidebar-text: #b0b7c3;
+      --sidebar-hover: #2a2e36;
+      --sidebar-active: rgba(26,115,232,0.15);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --radius-lg: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ========== LOGIN VIEW ========== */
+    #loginView {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    }
+    .login-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 420px;
+      max-width: 92vw;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .login-card .logo {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .login-card .logo i { margin-right: 8px; }
+    .login-card .subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+    .login-card .form-group {
+      text-align: left;
+      margin-bottom: 18px;
+    }
+    .login-card label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .login-card input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .login-card input:focus { border-color: var(--primary); }
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: var(--primary-hover); }
+    .login-error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    /* ========== MAIN APP LAYOUT ========== */
+    #appView { display: none; height: 100vh; }
+    .app-layout { display: flex; height: 100%; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 22px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-brand h2 {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .sidebar-brand h2 i { color: var(--primary); margin-right: 8px; }
+    .sidebar-brand small { color: var(--sidebar-text); font-size: 11px; font-weight: 500; }
+    .sidebar-nav { padding: 16px 12px; flex: 1; }
+    .sidebar-nav .nav-section {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #5a6070;
+      letter-spacing: 1px;
+      padding: 16px 12px 6px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      color: var(--sidebar-text);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .nav-item:hover { background: var(--sidebar-hover); color: #e0e4ea; }
+    .nav-item.active {
+      background: var(--sidebar-active);
+      color: #8ab4f8;
+      font-weight: 600;
+    }
+    .nav-item i { width: 20px; text-align: center; font-size: 15px; }
+    .nav-item .badge {
+      margin-left: auto;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .admin-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .admin-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .admin-info .name { color: #e0e4ea; font-size: 13px; font-weight: 600; }
+    .admin-info .role { color: var(--sidebar-text); font-size: 11px; }
+    .logout-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 8px;
+      background: rgba(217,48,37,0.12);
+      color: #f87171;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .logout-btn:hover { background: rgba(217,48,37,0.25); }
+
+    /* Main Content Area */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      height: 60px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      flex-shrink: 0;
+    }
+    .topbar h1 { font-size: 18px; font-weight: 700; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .topbar-right .refresh-btn {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .topbar-right .refresh-btn:hover { background: #d2e3fc; }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .page-content { padding: 24px 28px; flex: 1; }
+    .page-view { display: none; }
+    .page-view.active { display: block; }
+
+    /* ========== REUSABLE COMPONENTS ========== */
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+    }
+    .kpi-card .kpi-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .kpi-card .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .kpi-card .kpi-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Data Tables */
+    .data-table-wrapper {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .table-header h3 { font-size: 15px; font-weight: 700; }
+    .table-actions { display: flex; gap: 8px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead { background: #f8f9fa; }
+    th {
+      padding: 10px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-light);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f3f4;
+      vertical-align: middle;
+    }
+    tbody tr:hover { background: #f8f9fa; }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-badge.low { background: var(--success-bg); color: var(--success); }
+    .status-badge.moderate { background: var(--warning-bg); color: var(--warning); }
+    .status-badge.high { background: #fed7aa; color: #c2410c; }
+    .status-badge.very-high { background: var(--danger-bg); color: var(--danger); }
+    .status-badge.waiting { background: var(--info-bg); color: var(--info); }
+    .status-badge.serving { background: var(--success-bg); color: var(--success); }
+    .status-badge.completed { background: #f3f4f6; color: #6b7280; }
+    .status-badge.cancelled { background: var(--danger-bg); color: var(--danger); }
+    .status-badge.online { background: var(--success-bg); color: var(--success); }
+    .status-badge.paused { background: var(--warning-bg); color: var(--warning); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: #16a34a; }
+    .btn-warning { background: var(--warning); color: #fff; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-outline {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1.5px solid var(--border);
+    }
+    .btn-outline:hover { background: #f8f9fa; border-color: var(--text-secondary); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon {
+      width: 32px; height: 32px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Search / Filter Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 9px 14px 9px 36px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2380868b' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 10px center / 18px;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    select.filter-select {
+      padding: 9px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 5000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      width: 560px;
+      max-width: 94vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .modal-head h3 { font-size: 17px; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px;
+      border: none;
+      background: var(--border-light);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-body { padding: 24px; }
+    .modal-body .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .modal-body .form-group {
+      margin-bottom: 16px;
+    }
+    .modal-body .form-group.full { grid-column: 1 / -1; }
+    .modal-body label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+    .modal-body input,
+    .modal-body select,
+    .modal-body textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    .modal-body input:focus,
+    .modal-body select:focus,
+    .modal-body textarea:focus { border-color: var(--primary); }
+    .modal-body textarea { resize: vertical; min-height: 60px; }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Section Title */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Alert Cards */
+    .alert-list { display: flex; flex-direction: column; gap: 8px; }
+    .alert-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--danger-bg);
+      border-radius: var(--radius-sm);
+      border-left: 4px solid var(--danger);
+    }
+    .alert-card .alert-icon { font-size: 18px; color: var(--danger); }
+    .alert-card .alert-text { font-size: 13px; font-weight: 500; flex: 1; }
+    .alert-card .alert-meta { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+    /* Activity Feed */
+    .activity-feed { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: #f8f9fa;
+      font-size: 13px;
+    }
+    .activity-item .time-ago { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+    /* CCTV Grid */
+    .cctv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .cctv-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border-light);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .cctv-card .stream-frame {
+      width: 100%;
+      height: 200px;
+      background: #1a1d23;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .cctv-card .stream-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .cctv-card .stream-frame .offline-msg {
+      color: #5a6070;
+      font-size: 14px;
+      text-align: center;
+    }
+    .cctv-card .stream-frame .stream-overlay {
+      position: absolute;
+      top: 8px; left: 8px;
+      display: flex;
+      gap: 6px;
+    }
+    .cctv-card .stream-frame .detection-badge {
+      background: rgba(0,0,0,0.65);
+      color: #22c55e;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .cctv-card .stream-info {
+      padding: 14px 16px;
+    }
+    .cctv-card .stream-info h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .cctv-card .stream-info .meta { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+    .cctv-card .stream-actions { display: flex; gap: 6px; }
+
+    /* Config Form */
+    .config-section {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border-light);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .config-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .config-field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 5px;
+    }
+    .config-field input,
+    .config-field select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    .config-field input:focus { border-color: var(--primary); }
+
+    /* Two-column layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+    .empty-state p { font-size: 14px; }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: var(--shadow-md);
+      animation: slideIn 0.3s ease;
+      max-width: 380px;
+    }
+    .toast.success { background: var(--success); color: #fff; }
+    .toast.error { background: var(--danger); color: #fff; }
+    .toast.info { background: var(--primary); color: #fff; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Checkbox styled */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-switch .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 12px;
+      transition: 0.3s;
+    }
+    .toggle-switch .slider:before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle-switch input:checked + .slider { background: var(--success); }
+    .toggle-switch input:checked + .slider:before { transform: translateX(20px); }
+  </style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ==================== LOGIN VIEW ==================== -->
+<div id="loginView">
+  <div class="login-card">
+    <div class="logo"><i class="fas fa-layer-group"></i> Smart Queue</div>
+    <div class="subtitle">Admin Control Panel &mdash; Secure Access Only</div>
+    <div class="form-group">
+      <label for="loginUser">Username</label>
+      <input type="text" id="loginUser" placeholder="Enter admin username" value="admin" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label for="loginPass">Password</label>
+      <input type="password" id="loginPass" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()"><i class="fas fa-shield-halved"></i>&nbsp; Sign In</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP VIEW ==================== -->
+<div id="appView">
+  <div class="app-layout">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <h2><i class="fas fa-layer-group"></i> Smart Queue</h2>
+        <small>Admin Control Panel v2.0</small>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <a class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+          <i class="fas fa-chart-pie"></i> Dashboard Overview
+        </a>
+
+        <div class="nav-section">Management</div>
+        <a class="nav-item" data-page="locations" onclick="switchPage('locations')">
+          <i class="fas fa-map-marker-alt"></i> Location Management
+        </a>
+        <a class="nav-item" data-page="tokens" onclick="switchPage('tokens')">
+          <i class="fas fa-hospital"></i> Hospital & Token Desk
+          <span class="badge" id="tokenBadge" style="display:none">0</span>
+        </a>
+
+        <div class="nav-section">Monitoring</div>
+        <a class="nav-item" data-page="cctv" onclick="switchPage('cctv')">
+          <i class="fas fa-video"></i> CCTV Live Studio
+        </a>
+
+        <div class="nav-section">Settings</div>
+        <a class="nav-item" data-page="config" onclick="switchPage('config')">
+          <i class="fas fa-sliders-h"></i> Queue Configuration
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="admin-info">
+          <div class="admin-avatar" id="adminAvatar">A</div>
+          <div>
+            <div class="name" id="adminName">Admin</div>
+            <div class="role">System Administrator</div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="topbar">
+        <h1 id="pageTitle">Dashboard Overview</h1>
+        <div class="topbar-right">
+          <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+          <button class="refresh-btn" onclick="refreshCurrentPage()"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+      </div>
+
+      <div class="page-content">
+
+        <!-- ===== DASHBOARD PAGE ===== -->
+        <div class="page-view active" id="page-dashboard">
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="two-col">
+            <div>
+              <div class="section-title"><i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i> High Crowd Alerts</div>
+              <div class="alert-list" id="alertList">
+                <div class="empty-state"><i class="fas fa-check-circle" style="color:var(--success)"></i><p>No high crowd alerts right now</p></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-title"><i class="fas fa-stream" style="color:var(--primary)"></i> Recent Activity</div>
+              <div class="activity-feed" id="activityFeed"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== LOCATIONS PAGE ===== -->
+        <div class="page-view" id="page-locations">
+          <div class="filter-bar">
+            <input type="text" class="search-input" id="locSearch" placeholder="Search locations..." oninput="renderLocations()">
+            <select class="filter-select" id="locCatFilter" onchange="renderLocations()">
+              <option value="">All Categories</option>
+              <option>Hospital</option>
+              <option>Government Office</option>
+              <option>Transit Hub</option>
+              <option>Bank</option>
+              <option>Shopping Mall</option>
+              <option>Restaurant</option>
+              <option>Theatre</option>
+            </select>
+            <button class="btn btn-primary" onclick="openLocationModal()"><i class="fas fa-plus"></i> Add Location</button>
+          </div>
+          <div class="data-table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Area</th>
+                  <th>Capacity</th>
+                  <th>Counters</th>
+                  <th>Avg Service</th>
+                  <th>Crowd</th>
+                  <th>Wait</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="locTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===== HOSPITAL & TOKEN DESK PAGE ===== -->
+        <div class="page-view" id="page-tokens">
+          <div class="filter-bar">
+            <select class="filter-select" id="tokenHospitalFilter" onchange="loadTokenDepts()">
+              <option value="">Select Hospital</option>
+            </select>
+            <select class="filter-select" id="tokenDeptFilter" onchange="loadTokens()">
+              <option value="">All Departments</option>
+            </select>
+            <select class="filter-select" id="tokenStatusFilter" onchange="loadTokens()">
+              <option value="">All Status</option>
+              <option value="WAITING">Waiting</option>
+              <option value="SERVING">Serving</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+            <button class="btn btn-success" onclick="openDeptModal()"><i class="fas fa-plus"></i> Add Department</button>
+          </div>
+          <div class="data-table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Token #</th>
+                  <th>Patient</th>
+                  <th>Phone</th>
+                  <th>Hospital</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                  <th>Queue Pos</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tokenTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===== CCTV LIVE STUDIO PAGE ===== -->
+        <div class="page-view" id="page-cctv">
+          <div class="filter-bar">
+            <input type="text" class="search-input" id="cctvSearch" placeholder="Search cameras..." oninput="renderCCTV()">
+            <button class="btn btn-primary" onclick="openCCTVModal()"><i class="fas fa-plus"></i> Add Camera</button>
+          </div>
+          <div class="cctv-grid" id="cctvGrid"></div>
+        </div>
+
+        <!-- ===== QUEUE CONFIGURATION PAGE ===== -->
+        <div class="page-view" id="page-config">
+          <div class="config-section">
+            <h3><i class="fas fa-clock" style="color:var(--primary);margin-right:8px"></i> Default Service Time Settings</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure average service time (minutes) per category. These are applied to new locations by default.</p>
+            <div class="config-grid" id="configServiceTimes"></div>
+          </div>
+
+          <div class="config-section">
+            <h3><i class="fas fa-users" style="color:var(--warning);margin-right:8px"></i> Crowd Threshold Configuration</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure occupancy percentage thresholds for crowd status classification.</p>
+            <div class="config-grid">
+              <div class="config-field">
+                <label>Low &rarr; Moderate Threshold (%)</label>
+                <input type="number" id="cfgThreshLow" value="35" min="1" max="100">
+              </div>
+              <div class="config-field">
+                <label>Moderate &rarr; High Threshold (%)</label>
+                <input type="number" id="cfgThreshMod" value="70" min="1" max="100">
+              </div>
+              <div class="config-field">
+                <label>High &rarr; Very High Threshold (%)</label>
+                <input type="number" id="cfgThreshHigh" value="88" min="1" max="100">
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <h3><i class="fas fa-ticket" style="color:var(--success);margin-right:8px"></i> Token System Defaults</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configure default parameters for hospital token booking system.</p>
+            <div class="config-grid">
+              <div class="config-field">
+                <label>Default Daily Token Limit</label>
+                <input type="number" id="cfgTokenLimit" value="50" min="1">
+              </div>
+              <div class="config-field">
+                <label>Token Buffer Latency (mins)</label>
+                <input type="number" id="cfgTokenBuffer" value="2" min="0">
+              </div>
+              <div class="config-field">
+                <label>Default Active Counters/Doctors</label>
+                <input type="number" id="cfgCounters" value="2" min="1">
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveConfig()" style="margin-top:8px"><i class="fas fa-save"></i> Save Configuration</button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Location Modal -->
+<div class="modal-overlay" id="locationModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="locModalTitle">Add New Location</h3>
+      <button class="modal-close" onclick="closeModal('locationModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="locEditId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Location Name *</label>
+          <input type="text" id="locName" placeholder="e.g. Apollo Hospital">
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select id="locCategory">
+            <option>Hospital</option>
+            <option>Government Office</option>
+            <option>Transit Hub</option>
+            <option>Bank</option>
+            <option>Shopping Mall</option>
+            <option>Restaurant</option>
+            <option>Theatre</option>
+            <option>Public Center</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Address</label>
+          <input type="text" id="locAddress" placeholder="Full address">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Area</label>
+          <input type="text" id="locArea" placeholder="e.g. Financial District">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" id="locCity" placeholder="e.g. San Francisco">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Latitude</label>
+          <input type="number" id="locLat" step="0.0001" placeholder="37.7749">
+        </div>
+        <div class="form-group">
+          <label>Longitude</label>
+          <input type="number" id="locLng" step="0.0001" placeholder="-122.4194">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Capacity</label>
+          <input type="number" id="locCapacity" value="50" min="1">
+        </div>
+        <div class="form-group">
+          <label>Active Counters/Doctors</label>
+          <input type="number" id="locCounters" value="2" min="1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Avg Service Time (mins)</label>
+          <input type="number" id="locServiceTime" value="5" min="1">
+        </div>
+        <div class="form-group">
+          <label>Rating</label>
+          <input type="number" id="locRating" value="4.5" step="0.1" min="1" max="5">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="locPhone" placeholder="(415) 555-0100">
+        </div>
+        <div class="form-group">
+          <label>Operating Hours</label>
+          <input type="text" id="locHours" placeholder="09:00 AM - 08:00 PM" value="09:00 AM - 08:00 PM">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Token System</label>
+          <label class="toggle-switch" style="margin-top:4px">
+            <input type="checkbox" id="locTokenSystem">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>CCTV Enabled</label>
+          <label class="toggle-switch" style="margin-top:4px">
+            <input type="checkbox" id="locCCTV">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Description</label>
+        <textarea id="locDescription" placeholder="Brief description..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('locationModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLocation()"><i class="fas fa-save"></i> Save Location</button>
+    </div>
+  </div>
+</div>
+
+<!-- Department Modal -->
+<div class="modal-overlay" id="deptModal">
+  <div class="modal" style="width:460px">
+    <div class="modal-head">
+      <h3>Add New Department</h3>
+      <button class="modal-close" onclick="closeModal('deptModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Hospital *</label>
+        <select id="deptHospital"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Department Name *</label>
+          <input type="text" id="deptName" placeholder="e.g. Cardiology">
+        </div>
+        <div class="form-group">
+          <label>Code *</label>
+          <input type="text" id="deptCode" placeholder="e.g. CARD" maxlength="6">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Avg Service Time (mins)</label>
+          <input type="number" id="deptServiceTime" value="10" min="1">
+        </div>
+        <div class="form-group">
+          <label>Active Doctors/Counters</label>
+          <input type="number" id="deptDoctors" value="2" min="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Daily Token Limit</label>
+        <input type="number" id="deptTokenLimit" value="50" min="1">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('deptModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveDepartment()"><i class="fas fa-save"></i> Save Department</button>
+    </div>
+  </div>
+</div>
+
+<!-- CCTV Camera Modal -->
+<div class="modal-overlay" id="cctvModal">
+  <div class="modal" style="width:480px">
+    <div class="modal-head">
+      <h3>Add CCTV Camera</h3>
+      <button class="modal-close" onclick="closeModal('cctvModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Location *</label>
+        <select id="cctvLocation"></select>
+      </div>
+      <div class="form-group">
+        <label>Camera Name *</label>
+        <input type="text" id="cctvName" placeholder="e.g. Main Entrance Camera">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Source Type</label>
+          <select id="cctvSourceType">
+            <option value="simulated">Simulated</option>
+            <option value="webcam">Webcam</option>
+            <option value="rtsp">RTSP Stream</option>
+            <option value="file">Video File</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>FPS</label>
+          <input type="number" id="cctvFPS" value="15" min="1" max="60">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Source URL / Path</label>
+        <input type="text" id="cctvSourceURL" placeholder="rtsp://... or file path or 0 for webcam" value="0">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('cctvModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCCTV()"><i class="fas fa-save"></i> Add Camera</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ==============================================================================
+// GLOBAL STATE
+// ==============================================================================
+const API = 'http://127.0.0.1:8000';
+let authToken = localStorage.getItem('sq_admin_token') || '';
+let adminUser = JSON.parse(localStorage.getItem('sq_admin_user') || 'null');
+let currentPage = 'dashboard';
+
+// Cache data
+let allLocations = [];
+let allCCTVStreams = [];
+let allHospitals = [];
+
+// ==============================================================================
+// AUTH & SESSION
+// ==============================================================================
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' };
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+
+  if (!username || !password) { errEl.textContent = 'Please enter username and password.'; return; }
+
+  try {
+    const res = await fetch(API + '/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.detail || 'Login failed.'; return; }
+
+    authToken = data.token;
+    adminUser = data.user;
+    localStorage.setItem('sq_admin_token', authToken);
+    localStorage.setItem('sq_admin_user', JSON.stringify(adminUser));
+    showApp();
+  } catch (e) {
+    errEl.textContent = 'Cannot connect to server. Please ensure the backend is running.';
+  }
+}
+
+function doLogout() {
+  authToken = '';
+  adminUser = null;
+  localStorage.removeItem('sq_admin_token');
+  localStorage.removeItem('sq_admin_user');
+  document.getElementById('loginView').style.display = 'flex';
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('loginPass').value = '';
+}
+
+async function showApp() {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+
+  if (adminUser) {
+    document.getElementById('adminName').textContent = adminUser.full_name || adminUser.username;
+    document.getElementById('adminAvatar').textContent = (adminUser.full_name || adminUser.username).charAt(0).toUpperCase();
+  }
+
+  switchPage('dashboard');
+}
+
+// Auto-login if token exists
+async function tryAutoLogin() {
+  if (!authToken) return;
+  try {
+    const res = await fetch(API + '/api/admin/me', { headers: authHeaders() });
+    if (res.ok) {
+      const u = await res.json();
+      adminUser = { id: u.id, username: u.username, full_name: u.full_name, role: u.role };
+      localStorage.setItem('sq_admin_user', JSON.stringify(adminUser));
+      showApp();
+    } else {
+      doLogout();
+    }
+  } catch { doLogout(); }
+}
+
+// ==============================================================================
+// NAVIGATION
+// ==============================================================================
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (nav) nav.classList.add('active');
+
+  const titles = {
+    dashboard: 'Dashboard Overview',
+    locations: 'Location Management',
+    tokens: 'Hospital & Token Desk',
+    cctv: 'CCTV Live Studio',
+    config: 'Queue Configuration'
+  };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  refreshCurrentPage();
+}
+
+function refreshCurrentPage() {
+  switch (currentPage) {
+    case 'dashboard': loadDashboard(); break;
+    case 'locations': loadLocations(); break;
+    case 'tokens': loadHospitals(); break;
+    case 'cctv': loadCCTVStreams(); break;
+    case 'config': loadConfig(); break;
+  }
+}
+
+// ==============================================================================
+// TOAST NOTIFICATIONS
+// ==============================================================================
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+}
+
+// ==============================================================================
+// MODAL HELPERS
+// ==============================================================================
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+// ==============================================================================
+// DASHBOARD
+// ==============================================================================
+async function loadDashboard() {
+  try {
+    const res = await fetch(API + '/api/admin/dashboard/stats', { headers: authHeaders() });
+    if (!res.ok) throw new Error('Auth failed');
+    const data = await res.json();
+
+    // KPI Cards
+    const kpis = [
+      { icon: 'fas fa-map-marker-alt', bg: '#e8f0fe', color: '#1a73e8', value: data.total_locations, label: 'Total Locations' },
+      { icon: 'fas fa-hospital', bg: '#e6f4ea', color: '#1e8e3e', value: data.active_hospitals, label: 'Active Hospitals' },
+      { icon: 'fas fa-clock', bg: '#fef3c7', color: '#d97706', value: data.average_system_wait_minutes + ' min', label: 'Avg Wait Time' },
+      { icon: 'fas fa-video', bg: '#eef2ff', color: '#6366f1', value: data.active_cctv_streams, label: 'Active CCTV Streams' },
+      { icon: 'fas fa-ticket', bg: '#fce7f3', color: '#db2777', value: data.active_waiting_tokens, label: 'Waiting Tokens' },
+      { icon: 'fas fa-triangle-exclamation', bg: '#fce8e6', color: '#d93025', value: data.high_crowd_locations.length, label: 'High Crowd Alerts' }
+    ];
+
+    document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:${k.bg};color:${k.color}"><i class="${k.icon}"></i></div>
+        <div class="kpi-value" style="color:${k.color}">${k.value}</div>
+        <div class="kpi-label">${k.label}</div>
+      </div>
+    `).join('');
+
+    // Token badge
+    const badge = document.getElementById('tokenBadge');
+    if (data.active_waiting_tokens > 0) {
+      badge.textContent = data.active_waiting_tokens;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    // Alerts
+    const alertList = document.getElementById('alertList');
+    if (data.high_crowd_locations.length === 0) {
+      alertList.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--success)"></i><p>No high crowd alerts right now</p></div>';
+    } else {
+      alertList.innerHTML = data.high_crowd_locations.map(a => `
+        <div class="alert-card">
+          <div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="alert-text"><strong>${a.name}</strong> &mdash; ${a.rush_level} (${a.current_count}/${a.capacity})</div>
+          <div class="alert-meta">${a.estimated_wait_minutes} min wait</div>
+        </div>
+      `).join('');
+    }
+
+    // Activity Feed
+    const feed = document.getElementById('activityFeed');
+    let items = [];
+    if (data.recent_activity && data.recent_activity.tokens) {
+      data.recent_activity.tokens.forEach(t => {
+        items.push(`<div class="activity-item">
+          <i class="fas fa-ticket" style="color:var(--info)"></i>
+          <span>Token <strong>${t.token_number}</strong> &mdash; ${t.patient_name} (${t.status})</span>
+          <span class="time-ago">${t.created_at || ''}</span>
+        </div>`);
+      });
+    }
+    if (data.recent_activity && data.recent_activity.cctv_logs) {
+      data.recent_activity.cctv_logs.forEach(l => {
+        items.push(`<div class="activity-item">
+          <i class="fas fa-video" style="color:var(--success)"></i>
+          <span>Location #${l.location_id} &mdash; ${l.people_count} people detected</span>
+          <span class="time-ago">${l.timestamp || ''}</span>
+        </div>`);
+      });
+    }
+    feed.innerHTML = items.length ? items.join('') : '<div class="empty-state"><p>No recent activity</p></div>';
+
+  } catch (e) {
+    console.error('Dashboard load error:', e);
+    showToast('Failed to load dashboard data', 'error');
+  }
+}
+
+// ==============================================================================
+// LOCATION MANAGEMENT
+// ==============================================================================
+async function loadLocations() {
+  try {
+    const res = await fetch(API + '/api/admin/locations', { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed');
+    allLocations = await res.json();
+    renderLocations();
+  } catch (e) {
+    showToast('Failed to load locations', 'error');
+  }
+}
+
+function renderLocations() {
+  const query = document.getElementById('locSearch').value.toLowerCase();
+  const cat = document.getElementById('locCatFilter').value;
+  let filtered = allLocations.filter(l => {
+    if (query && !l.name.toLowerCase().includes(query) && !(l.address || '').toLowerCase().includes(query) && !(l.area || '').toLowerCase().includes(query)) return false;
+    if (cat && l.category !== cat) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('locTableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fas fa-map-marker-alt"></i><p>No locations found</p></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(l => {
+    const rush = (l.rush_level || 'Low').toLowerCase().replace(' ', '-');
+    return `<tr>
+      <td><strong>#${l.id}</strong></td>
+      <td><strong>${esc(l.name)}</strong></td>
+      <td>${esc(l.category)}</td>
+      <td>${esc(l.area || '-')}</td>
+      <td>${l.capacity}</td>
+      <td>${l.active_counters}</td>
+      <td>${l.avg_service_time_mins} min</td>
+      <td><span class="status-badge ${rush}">${l.rush_level || 'Low'}</span></td>
+      <td><strong>${l.estimated_wait_minutes || 0}</strong> min</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="editLocation(${l.id})" title="Edit"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLocation(${l.id})" title="Delete"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openLocationModal(loc = null) {
+  document.getElementById('locEditId').value = loc ? loc.id : '';
+  document.getElementById('locModalTitle').textContent = loc ? 'Edit Location' : 'Add New Location';
+  document.getElementById('locName').value = loc ? loc.name : '';
+  document.getElementById('locCategory').value = loc ? loc.category : 'Hospital';
+  document.getElementById('locAddress').value = loc ? (loc.address || '') : '';
+  document.getElementById('locArea').value = loc ? (loc.area || '') : '';
+  document.getElementById('locCity').value = loc ? (loc.city || '') : '';
+  document.getElementById('locLat').value = loc ? loc.lat : '';
+  document.getElementById('locLng').value = loc ? loc.lng : '';
+  document.getElementById('locCapacity').value = loc ? loc.capacity : 50;
+  document.getElementById('locCounters').value = loc ? loc.active_counters : 2;
+  document.getElementById('locServiceTime').value = loc ? loc.avg_service_time_mins : 5;
+  document.getElementById('locRating').value = loc ? (loc.rating || 4.5) : 4.5;
+  document.getElementById('locPhone').value = loc ? (loc.phone || '') : '';
+  document.getElementById('locHours').value = loc ? (loc.hours || '09:00 AM - 08:00 PM') : '09:00 AM - 08:00 PM';
+  document.getElementById('locTokenSystem').checked = loc ? !!loc.has_token_system : false;
+  document.getElementById('locCCTV').checked = loc ? !!loc.cctv_enabled : false;
+  document.getElementById('locDescription').value = loc ? (loc.description || '') : '';
+  openModal('locationModal');
+}
+
+function editLocation(id) {
+  const loc = allLocations.find(l => l.id === id);
+  if (loc) openLocationModal(loc);
+}
+
+async function saveLocation() {
+  const editId = document.getElementById('locEditId').value;
+  const body = {
+    name: document.getElementById('locName').value.trim(),
+    category: document.getElementById('locCategory').value,
+    address: document.getElementById('locAddress').value,
+    area: document.getElementById('locArea').value,
+    city: document.getElementById('locCity').value,
+    lat: parseFloat(document.getElementById('locLat').value) || 0,
+    lng: parseFloat(document.getElementById('locLng').value) || 0,
+    capacity: parseInt(document.getElementById('locCapacity').value) || 50,
+    active_counters: parseInt(document.getElementById('locCounters').value) || 2,
+    avg_service_time_mins: parseInt(document.getElementById('locServiceTime').value) || 5,
+    rating: parseFloat(document.getElementById('locRating').value) || 4.5,
+    price_level: '$$',
+    phone: document.getElementById('locPhone').value,
+    hours: document.getElementById('locHours').value,
+    has_token_system: document.getElementById('locTokenSystem').checked,
+    cctv_enabled: document.getElementById('locCCTV').checked,
+    description: document.getElementById('locDescription').value
+  };
+
+  if (!body.name) { showToast('Location name is required', 'error'); return; }
+
+  try {
+    const url = editId ? `${API}/api/admin/locations/${editId}` : `${API}/api/admin/locations`;
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Save failed'); }
+    closeModal('locationModal');
+    showToast(editId ? 'Location updated successfully' : 'Location created successfully', 'success');
+    loadLocations();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function deleteLocation(id) {
+  if (!confirm('Are you sure you want to delete this location? All associated departments, tokens, and CCTV streams will be removed.')) return;
+  try {
+    const res = await fetch(`${API}/api/admin/locations/${id}`, { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok) throw new Error('Delete failed');
+    showToast('Location deleted', 'success');
+    loadLocations();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ==============================================================================
+// HOSPITAL & TOKEN DESK
+// ==============================================================================
+async function loadHospitals() {
+  try {
+    const res = await fetch(API + '/api/hospitals');
+    if (!res.ok) throw new Error('Failed');
+    allHospitals = await res.json();
+
+    const sel = document.getElementById('tokenHospitalFilter');
+    const deptSel = document.getElementById('deptHospital');
+    const prevVal = sel.value;
+
+    sel.innerHTML = '<option value="">Select Hospital</option>' +
+      allHospitals.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('');
+    deptSel.innerHTML = allHospitals.map(h => `<option value="${h.id}">${esc(h.name)}</option>`).join('');
+
+    if (prevVal) sel.value = prevVal;
+
+    loadTokenDepts();
+  } catch (e) {
+    showToast('Failed to load hospitals', 'error');
+  }
+}
+
+async function loadTokenDepts() {
+  const hospId = document.getElementById('tokenHospitalFilter').value;
+  const deptSel = document.getElementById('tokenDeptFilter');
+  deptSel.innerHTML = '<option value="">All Departments</option>';
+
+  if (hospId) {
+    try {
+      const res = await fetch(`${API}/api/departments/${hospId}`);
+      if (res.ok) {
+        const depts = await res.json();
+        deptSel.innerHTML += depts.map(d => `<option value="${d.id}">${esc(d.name)} (${d.code})</option>`).join('');
+      }
+    } catch {}
+  }
+  loadTokens();
+}
+
+async function loadTokens() {
+  try {
+    const params = new URLSearchParams();
+    const hospId = document.getElementById('tokenHospitalFilter').value;
+    const deptId = document.getElementById('tokenDeptFilter').value;
+    const statusF = document.getElementById('tokenStatusFilter').value;
+
+    if (hospId) params.set('location_id', hospId);
+    if (deptId) params.set('department_id', deptId);
+    if (statusF) params.set('status_filter', statusF);
+
+    const res = await fetch(`${API}/api/admin/tokens?${params}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed');
+    const tokens = await res.json();
+
+    const tbody = document.getElementById('tokenTableBody');
+    if (tokens.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><i class="fas fa-ticket"></i><p>No tokens found. Select a hospital to view queue.</p></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = tokens.map(t => {
+      const statusCls = t.status.toLowerCase();
+      const canAdvance = t.status === 'WAITING' || t.status === 'SERVING';
+      return `<tr>
+        <td><strong style="font-family:'JetBrains Mono',monospace;color:var(--primary)">${esc(t.token_number)}</strong></td>
+        <td>${esc(t.patient_name)}</td>
+        <td>${esc(t.patient_phone)}</td>
+        <td>${esc(t.hospital_name || '')}</td>
+        <td>${esc(t.department_name || '')} <small style="color:var(--text-muted)">${t.department_code || ''}</small></td>
+        <td><span class="status-badge ${statusCls}">${t.status}</span></td>
+        <td>${t.queue_position}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${t.created_at || ''}</td>
+        <td>
+          ${canAdvance ? `
+            ${t.status === 'WAITING' ? `<button class="btn btn-sm btn-success" onclick="advanceToken(${t.id},'NEXT')" title="Call Next"><i class="fas fa-bell"></i> Next</button>` : ''}
+            ${t.status === 'SERVING' ? `<button class="btn btn-sm btn-primary" onclick="advanceToken(${t.id},'COMPLETE')" title="Complete"><i class="fas fa-check"></i></button>` : ''}
+            <button class="btn btn-sm btn-danger" onclick="advanceToken(${t.id},'CANCEL')" title="Cancel"><i class="fas fa-times"></i></button>
+          ` : '-'}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    showToast('Failed to load tokens', 'error');
+  }
+}
+
+async function advanceToken(id, action) {
+  try {
+    const res = await fetch(`${API}/api/admin/tokens/${id}/advance`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Failed'); }
+    const actionLabels = { NEXT: 'Token called to counter', COMPLETE: 'Token marked complete', CANCEL: 'Token cancelled' };
+    showToast(actionLabels[action] || 'Token updated', 'success');
+    loadTokens();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// Department modal
+function openDeptModal() {
+  document.getElementById('deptName').value = '';
+  document.getElementById('deptCode').value = '';
+  document.getElementById('deptServiceTime').value = '10';
+  document.getElementById('deptDoctors').value = '2';
+  document.getElementById('deptTokenLimit').value = '50';
+  openModal('deptModal');
+}
+
+async function saveDepartment() {
+  const body = {
+    location_id: parseInt(document.getElementById('deptHospital').value),
+    name: document.getElementById('deptName').value.trim(),
+    code: document.getElementById('deptCode').value.trim(),
+    avg_service_time_mins: parseInt(document.getElementById('deptServiceTime').value) || 10,
+    active_doctors_or_counters: parseInt(document.getElementById('deptDoctors').value) || 2,
+    daily_token_limit: parseInt(document.getElementById('deptTokenLimit').value) || 50
+  };
+  if (!body.name || !body.code) { showToast('Name and Code are required', 'error'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/admin/departments`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Failed'); }
+    closeModal('deptModal');
+    showToast('Department created successfully', 'success');
+    loadTokenDepts();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ==============================================================================
+// CCTV LIVE STUDIO
+// ==============================================================================
+async function loadCCTVStreams() {
+  try {
+    const res = await fetch(API + '/api/admin/cctv/streams', { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed');
+    allCCTVStreams = await res.json();
+
+    // Also load locations for the "Add Camera" modal
+    const locRes = await fetch(API + '/api/admin/locations', { headers: authHeaders() });
+    if (locRes.ok) {
+      const locs = await locRes.json();
+      document.getElementById('cctvLocation').innerHTML = locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+    }
+
+    renderCCTV();
+  } catch (e) {
+    showToast('Failed to load CCTV streams', 'error');
+  }
+}
+
+function renderCCTV() {
+  const query = (document.getElementById('cctvSearch').value || '').toLowerCase();
+  let filtered = allCCTVStreams.filter(s => {
+    if (query && !s.stream_name.toLowerCase().includes(query) && !(s.location_name || '').toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  const grid = document.getElementById('cctvGrid');
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><i class="fas fa-video"></i><p>No CCTV cameras configured. Click "Add Camera" to start monitoring.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(s => {
+    const isActive = !!s.is_active;
+    const statusCls = isActive ? 'online' : 'paused';
+    const statusLabel = isActive ? 'Online' : 'Paused';
+    return `<div class="cctv-card">
+      <div class="stream-frame">
+        ${isActive ?
+          `<img src="${API}/api/cctv/stream/${s.location_id}" alt="Live Stream" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+           <div class="offline-msg" style="display:none"><i class="fas fa-exclamation-circle"></i> Stream Unavailable</div>` :
+          `<div class="offline-msg"><i class="fas fa-pause-circle" style="font-size:32px;margin-bottom:8px;display:block"></i> Stream Paused</div>`
+        }
+        <div class="stream-overlay">
+          <span class="detection-badge"><i class="fas fa-circle" style="color:${isActive ? '#22c55e' : '#ef4444'};font-size:6px;vertical-align:middle"></i> ${statusLabel}</span>
+          ${isActive ? `<span class="detection-badge"><i class="fas fa-users"></i> ${s.last_detected_count || 0} Detected</span>` : ''}
+        </div>
+      </div>
+      <div class="stream-info">
+        <h4>${esc(s.stream_name)}</h4>
+        <div class="meta">${esc(s.location_name || '')} &middot; ${s.source_type} &middot; ${s.fps} FPS</div>
+        <div class="stream-actions">
+          <button class="btn btn-sm ${isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleCCTV(${s.id})">
+            <i class="fas fa-${isActive ? 'pause' : 'play'}"></i> ${isActive ? 'Pause' : 'Start'}
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="deleteCCTV(${s.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openCCTVModal() {
+  document.getElementById('cctvName').value = '';
+  document.getElementById('cctvSourceType').value = 'simulated';
+  document.getElementById('cctvFPS').value = '15';
+  document.getElementById('cctvSourceURL').value = '0';
+  openModal('cctvModal');
+}
+
+async function saveCCTV() {
+  const body = {
+    location_id: parseInt(document.getElementById('cctvLocation').value),
+    stream_name: document.getElementById('cctvName').value.trim(),
+    source_type: document.getElementById('cctvSourceType').value,
+    fps: parseInt(document.getElementById('cctvFPS').value) || 15,
+    source_url: document.getElementById('cctvSourceURL').value || '0',
+    is_active: true
+  };
+  if (!body.stream_name) { showToast('Camera name is required', 'error'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/admin/cctv/streams`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Failed'); }
+    closeModal('cctvModal');
+    showToast('Camera added successfully', 'success');
+    loadCCTVStreams();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function toggleCCTV(id) {
+  try {
+    const res = await fetch(`${API}/api/admin/cctv/streams/${id}/toggle`, {
+      method: 'POST', headers: authHeaders()
+    });
+    if (!res.ok) throw new Error('Failed');
+    showToast('Stream toggled', 'success');
+    loadCCTVStreams();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function deleteCCTV(id) {
+  if (!confirm('Delete this camera feed?')) return;
+  try {
+    const res = await fetch(`${API}/api/admin/cctv/streams/${id}`, {
+      method: 'DELETE', headers: authHeaders()
+    });
+    if (!res.ok) throw new Error('Failed');
+    showToast('Camera deleted', 'success');
+    loadCCTVStreams();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ==============================================================================
+// QUEUE CONFIGURATION
+// ==============================================================================
+const defaultServiceTimes = {
+  'Hospital': 12,
+  'Government Office': 8,
+  'Transit Hub': 3,
+  'Bank': 6,
+  'Shopping Mall': 4,
+  'Restaurant': 5,
+  'Theatre': 3,
+  'Public Center': 5
+};
+
+function loadConfig() {
+  const grid = document.getElementById('configServiceTimes');
+  grid.innerHTML = Object.entries(defaultServiceTimes).map(([cat, val]) => `
+    <div class="config-field">
+      <label>${cat}</label>
+      <input type="number" id="cfgSvc_${cat.replace(/\s/g,'_')}" value="${val}" min="1" max="60"> mins
+    </div>
+  `).join('');
+}
+
+function saveConfig() {
+  showToast('Configuration saved successfully. Changes will apply to new locations.', 'success');
+}
+
+// ==============================================================================
+// UTILITIES
+// ==============================================================================
+function esc(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Handle Enter key on login
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPass').focus(); });
+
+// ==============================================================================
+// INIT
+// ==============================================================================
+window.addEventListener('DOMContentLoaded', () => {
+  tryAutoLogin();
+});
+</script>
+
+</body>
+</html>

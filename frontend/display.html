@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Queue — Kiosk Live Queue Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --card-bg: #141820;
+    --card-border: #232a36;
+    --text: #f3f5f8;
+    --text-dim: #8b95a5;
+    --low: #22c55e;
+    --medium: #f59e0b;
+    --high: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    overflow: hidden;
+  }
+  .board-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    position: relative;
+  }
+  .kiosk-card {
+    background: var(--card-bg);
+    border: 2px solid var(--card-border);
+    border-radius: 28px;
+    padding: 48px 60px;
+    max-width: 800px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 10px #22c55e;
+    animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(0.9); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.5; }
+    100% { transform: scale(0.9); opacity: 1; }
+  }
+  .location-name {
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+  .location-meta {
+    color: var(--text-dim);
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 36px;
+  }
+  .wait-display-box {
+    background: rgba(0,0,0,0.25);
+    border-radius: 20px;
+    padding: 32px 20px;
+    margin-bottom: 32px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .wait-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 110px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -3px;
+    margin-bottom: 6px;
+  }
+  .wait-number.Low { color: var(--low); text-shadow: 0 0 30px rgba(34,197,94,0.3); }
+  .wait-number.Medium { color: var(--medium); text-shadow: 0 0 30px rgba(245,158,11,0.3); }
+  .wait-number.High, .wait-number.Peak { color: var(--high); text-shadow: 0 0 30px rgba(239,68,68,0.3); }
+  
+  .wait-label {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .status-pill {
+    display: inline-block;
+    font-size: 16px;
+    font-weight: 800;
+    padding: 8px 24px;
+    border-radius: 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .status-pill.Low { background: rgba(34,197,94,0.15); color: var(--low); border: 2px solid var(--low); }
+  .status-pill.Medium { background: rgba(245,158,11,0.15); color: var(--medium); border: 2px solid var(--medium); }
+  .status-pill.High, .status-pill.Peak { background: rgba(239,68,68,0.15); color: var(--high); border: 2px solid var(--high); }
+  
+  .footer {
+    position: absolute;
+    bottom: 24px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="board-container">
+  <div class="kiosk-card" id="board">
+    <div style="font-size: 20px; color: var(--text-dim);">Connecting to Smart Queue…</div>
+  </div>
+
+  <div class="footer" id="footer">
+    <span>Smart Queue Live Kiosk</span>
+    <span>•</span>
+    <span id="syncText">Auto-updating every 60s</span>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "http://127.0.0.1:8000";
+  const params = new URLSearchParams(window.location.search);
+  const locationId = params.get("location") || "1";
+
+  async function refresh() {
+    try {
+      const res = await fetch(`${API_BASE}/api/status/${locationId}`);
+      if (!res.ok) throw new Error();
+      const s = await res.json();
+      
+      document.getElementById("board").innerHTML = `
+        <div class="live-badge">
+          <span class="pulse-dot"></span>
+          <span>Live Queue Display</span>
+        </div>
+        <h1 class="location-name">${s.name}</h1>
+        <div class="location-meta">${s.category} • ${s.area || s.address} • ${s.current_count}/${s.capacity} Seated</div>
+        
+        <div class="wait-display-box">
+          <div class="wait-number ${s.rush_level}">~${s.estimated_wait_minutes}</div>
+          <div class="wait-label">Minutes Estimated Wait</div>
+        </div>
+
+        <div>
+          <span class="status-pill ${s.rush_level}">${s.rush_level} Rush</span>
+        </div>
+      `;
+
+      const now = new Date().toLocaleTimeString();
+      document.getElementById("syncText").textContent = `Last synced ${now} • Next in 60s`;
+    } catch (e) {
+      document.getElementById("board").innerHTML = `
+        <div style="font-size: 20px; color: var(--high);">
+          Unable to reach Smart Queue server. Check backend on port 8000.
+        </div>
+      `;
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 60000); // 1-minute auto refresh
+</script>
+</body>
+</html>
