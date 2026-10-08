@@ -19,11 +19,15 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException, Query, Header, Depends, status, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(__file__).parent / "smart_queue.db"
 SECRET_KEY = os.environ.get("SMART_QUEUE_SECRET", "smart-queue-secret-key-2026-production-ready")
+
+# Resolve frontend directory (works both locally and on Render)
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 app = FastAPI(
     title="Smart Queue Management API",
@@ -1239,3 +1243,28 @@ def get_cctv_stream(location_id: int):
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
+
+# ─────────────────────────────────────────────────────────────
+# Serve Frontend Static Files  (must be LAST — after all /api routes)
+# ─────────────────────────────────────────────────────────────
+
+if FRONTEND_DIR.exists():
+    # Serve the user map at root "/"
+    @app.get("/", response_class=HTMLResponse)
+    def serve_index():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+    # Serve admin panel
+    @app.get("/admin", response_class=HTMLResponse)
+    @app.get("/admin.html", response_class=HTMLResponse)
+    def serve_admin():
+        return FileResponse(FRONTEND_DIR / "admin.html")
+
+    # Serve display/kiosk board
+    @app.get("/display", response_class=HTMLResponse)
+    @app.get("/display.html", response_class=HTMLResponse)
+    def serve_display():
+        return FileResponse(FRONTEND_DIR / "display.html")
+
+    # Mount all other static assets (CSS, JS, images if added later)
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

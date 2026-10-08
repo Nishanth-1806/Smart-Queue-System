@@ -1155,7 +1155,9 @@
 // ==============================================================================
 // GLOBAL STATE
 // ==============================================================================
-const API = 'http://127.0.0.1:8000';
+const API = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+  ? "http://127.0.0.1:8000"
+  : window.location.origin;
 let authToken = localStorage.getItem('sq_admin_token') || '';
 let adminUser = JSON.parse(localStorage.getItem('sq_admin_user') || 'null');
 let currentPage = 'dashboard';
