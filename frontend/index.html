@@ -129,19 +129,99 @@
       font-weight: 700;
     }
 
+    .header-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .header-links a {
       text-decoration: none;
       color: var(--text-secondary);
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 600;
       padding: 6px 12px;
       border-radius: 6px;
-      transition: background 0.15s;
+      transition: all 0.15s;
     }
     .header-links a:hover {
       background: var(--border-light);
       color: var(--text);
     }
+    .header-links .admin-portal-btn {
+      background: #1a73e8;
+      color: #ffffff !important;
+      padding: 7px 14px;
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(26,115,232,0.3);
+    }
+    .header-links .admin-portal-btn:hover {
+      background: #1557b0;
+      color: #ffffff !important;
+    }
+    .header-links .display-board-btn {
+      background: #e8f0fe;
+      color: #1967d2 !important;
+      padding: 7px 12px;
+    }
+    .header-links .display-board-btn:hover {
+      background: #d2e3fc;
+    }
+    .demo-banner {
+      background: #fef3c7;
+      border-bottom: 1px solid #fde68a;
+      color: #92400e;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 999;
+    }
+    .demo-banner a {
+      color: #1a73e8;
+      text-decoration: underline;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    /* Modal styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-box {
+      background: #ffffff;
+      border-radius: 12px;
+      width: 460px;
+      max-width: 90vw;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }
+    .modal-box h3 { margin-bottom: 8px; font-size: 18px; color: var(--text); }
+    .modal-box p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
+    .modal-box input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .modal-box input:focus { border-color: var(--primary); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; border: none; }
+    .modal-btn.primary { background: var(--primary); color: #fff; }
+    .modal-btn.outline { background: #f1f3f4; color: var(--text); }
 
     /* App Container */
     .app-body {
@@ -842,10 +922,18 @@
     </div>
 
     <div class="header-links">
-      <a href="/docs" target="_blank" title="View Swagger API docs">API Docs</a>
-      <a href="javascript:void(0)" onclick="refreshAllData(true)">🔄 Sync Now</a>
+      <a href="admin.html" class="admin-portal-btn" title="Open Admin Control Panel">🛡️ Admin Portal</a>
+      <a href="display.html" target="_blank" class="display-board-btn" title="Open TV Queue Display Board">📺 Display Board</a>
+      <a href="javascript:void(0)" onclick="openApiModal()" title="Configure Backend Server API">⚙️ API</a>
+      <a href="javascript:void(0)" onclick="refreshAllData(true)">🔄 Sync</a>
     </div>
   </header>
+
+  <!-- Demo Mode Banner -->
+  <div class="demo-banner" id="demoBanner" style="display:none">
+    <span>⚡ <strong>Offline Demo Mode:</strong> Viewing preview dataset. Connect your backend API to stream live data.</span>
+    <a onclick="openApiModal()">Configure API URL</a>
+  </div>
 
   <!-- Main Body -->
   <div class="app-body">
@@ -1029,9 +1117,216 @@
   </div>
 
   <script>
-    const API_BASE = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
-      ? "http://127.0.0.1:8000"
-      : window.location.origin;
+    const SAVED_API = localStorage.getItem("SMART_QUEUE_API_URL");
+    const API_BASE = SAVED_API 
+      ? SAVED_API.replace(/\/$/, "")
+      : (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+        ? "http://127.0.0.1:8000"
+        : window.location.origin;
+
+    // Embedded Demo Locations Fallback
+    const DEMO_LOCATIONS = [
+      {
+        id: 1,
+        name: "Tartine Bakery & Cafe",
+        category: "Restaurant",
+        cuisine: "Artisan Bakery, French Pastries, Espresso",
+        address: "600 Guerrero Street",
+        area: "Mission",
+        city: "San Francisco",
+        lat: 37.7614,
+        lng: -122.4241,
+        rating: 4.8,
+        price_level: "$$",
+        capacity: 45,
+        current_count: 38,
+        estimated_wait_minutes: 25,
+        rush_level: "high",
+        image_url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=500&q=80",
+        phone: "+1 (415) 487-2600",
+        hours: "08:00 AM – 07:00 PM"
+      },
+      {
+        id: 2,
+        name: "Tony's Pizza Napoletana",
+        category: "Restaurant",
+        cuisine: "Neapolitan Pizza, Pasta, Italian Wine",
+        address: "1570 Stockton Street",
+        area: "North Beach",
+        city: "San Francisco",
+        lat: 37.8003,
+        lng: -122.4090,
+        rating: 4.9,
+        price_level: "$$$",
+        capacity: 80,
+        current_count: 72,
+        estimated_wait_minutes: 35,
+        rush_level: "high",
+        image_url: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80",
+        phone: "+1 (415) 835-9888",
+        hours: "11:30 AM – 10:00 PM"
+      },
+      {
+        id: 3,
+        name: "Apollo Multi-Speciality Hospital",
+        category: "Hospital",
+        cuisine: "Cardiology, General OPD, Pediatrics, Orthopedics",
+        address: "2100 Webster Street",
+        area: "Downtown",
+        city: "San Francisco",
+        lat: 37.7905,
+        lng: -122.4320,
+        rating: 4.9,
+        price_level: "$$$",
+        capacity: 220,
+        current_count: 85,
+        estimated_wait_minutes: 8,
+        rush_level: "low",
+        image_url: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=500&q=80",
+        phone: "+1 (415) 555-0800",
+        hours: "24 Hours / OPD: 08:00 AM – 08:00 PM"
+      },
+      {
+        id: 4,
+        name: "Marufuku Ramen",
+        category: "Restaurant",
+        cuisine: "Hakata Tonkotsu Ramen, Gyoza, Japanese Beer",
+        address: "1581 Webster Street",
+        area: "Japantown",
+        city: "San Francisco",
+        lat: 37.7852,
+        lng: -122.4294,
+        rating: 4.7,
+        price_level: "$$",
+        capacity: 60,
+        current_count: 44,
+        estimated_wait_minutes: 18,
+        rush_level: "med",
+        image_url: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&q=80",
+        phone: "+1 (415) 872-9786",
+        hours: "11:00 AM – 09:30 PM"
+      },
+      {
+        id: 5,
+        name: "La Taqueria",
+        category: "Restaurant",
+        cuisine: "Mission Burritos, Carnitas Tacos, Aguas Frescas",
+        address: "2889 Mission Street",
+        area: "Mission",
+        city: "San Francisco",
+        lat: 37.7508,
+        lng: -122.4181,
+        rating: 4.6,
+        price_level: "$",
+        capacity: 40,
+        current_count: 24,
+        estimated_wait_minutes: 10,
+        rush_level: "low",
+        image_url: "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=500&q=80",
+        phone: "+1 (415) 285-7117",
+        hours: "11:00 AM – 08:30 PM"
+      },
+      {
+        id: 6,
+        name: "Swan Oyster Depot",
+        category: "Restaurant",
+        cuisine: "Fresh Oysters, Clam Chowder, Dungeness Crab",
+        address: "1517 Polk Street",
+        area: "Nob Hill",
+        city: "San Francisco",
+        lat: 37.7908,
+        lng: -122.4223,
+        rating: 4.8,
+        price_level: "$$$",
+        capacity: 20,
+        current_count: 18,
+        estimated_wait_minutes: 30,
+        rush_level: "high",
+        image_url: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=500&q=80",
+        phone: "+1 (415) 673-1101",
+        hours: "10:30 AM – 05:30 PM"
+      },
+      {
+        id: 7,
+        name: "House of Prime Rib",
+        category: "Restaurant",
+        cuisine: "Dry-Aged Prime Rib, Yorkshire Pudding, Creamed Spinach",
+        address: "1906 Van Ness Ave",
+        area: "Nob Hill",
+        city: "San Francisco",
+        lat: 37.7933,
+        lng: -122.4227,
+        rating: 4.9,
+        price_level: "$$$$",
+        capacity: 150,
+        current_count: 125,
+        estimated_wait_minutes: 28,
+        rush_level: "high",
+        image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?w=500&q=80",
+        phone: "+1 (415) 885-4605",
+        hours: "05:00 PM – 10:00 PM"
+      },
+      {
+        id: 8,
+        name: "City General Memorial Hospital",
+        category: "Hospital",
+        cuisine: "Outpatient Triage, Internal Medicine, Pharmacy",
+        address: "1001 Potrero Avenue",
+        area: "Mission",
+        city: "San Francisco",
+        lat: 37.7558,
+        lng: -122.4060,
+        rating: 4.7,
+        price_level: "$$",
+        capacity: 280,
+        current_count: 90,
+        estimated_wait_minutes: 6,
+        rush_level: "low",
+        image_url: "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=500&q=80",
+        phone: "+1 (415) 206-8000",
+        hours: "24 Hours / Emergency OPD"
+      },
+      {
+        id: 9,
+        name: "Dumpling Home",
+        category: "Restaurant",
+        cuisine: "Xiao Long Bao, Juicy Pork Buns, Dan Dan Noodles",
+        address: "298 Gough Street",
+        area: "Hayes Valley",
+        city: "San Francisco",
+        lat: 37.7766,
+        lng: -122.4239,
+        rating: 4.7,
+        price_level: "$$",
+        capacity: 50,
+        current_count: 36,
+        estimated_wait_minutes: 15,
+        rush_level: "med",
+        image_url: "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=500&q=80",
+        phone: "+1 (415) 500-2348",
+        hours: "11:30 AM – 08:30 PM"
+      },
+      {
+        id: 10,
+        name: "State Bird Provisions",
+        category: "Restaurant",
+        cuisine: "California Contemporary Dim Sum-style carts",
+        address: "1529 Fillmore Street",
+        area: "Western Addition",
+        city: "San Francisco",
+        lat: 37.7836,
+        lng: -122.4338,
+        rating: 4.8,
+        price_level: "$$$",
+        capacity: 65,
+        current_count: 35,
+        estimated_wait_minutes: 9,
+        rush_level: "low",
+        image_url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500&q=80",
+        phone: "+1 (415) 795-1272",
+        hours: "05:30 PM – 10:00 PM"
+      }
+    ];
     
     // Application State
     let allLocations = [];
@@ -1064,42 +1359,56 @@
       }).addTo(map);
 
       markersLayer = L.layerGroup().addTo(map);
+
+      // Force recalculation of map container dimensions
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 300);
     }
 
-    // 2. Fetch Areas from API
+    // 2. Fetch Areas from API or Locations
     async function loadAreas() {
       try {
         const res = await fetch(`${API_BASE}/api/areas`);
-        if (!res.ok) return;
-        const areas = await res.json();
-        const select = document.getElementById("areaSelect");
-        select.innerHTML = '<option value="All">📍 All Areas</option>';
-        areas.forEach(a => {
-          const opt = document.createElement("option");
-          opt.value = a;
-          opt.textContent = a;
-          select.appendChild(opt);
-        });
+        if (res.ok) {
+          const areas = await res.json();
+          renderAreasDropdown(areas);
+          return;
+        }
       } catch (e) {
-        console.error("Failed to load areas:", e);
+        // Fallback to areas in current locations
       }
+      const uniqueAreas = Array.from(new Set(allLocations.map(l => l.area).filter(Boolean)));
+      renderAreasDropdown(uniqueAreas);
     }
 
-    // 3. Fetch all Locations
+    function renderAreasDropdown(areas) {
+      const select = document.getElementById("areaSelect");
+      select.innerHTML = '<option value="All">📍 All Areas</option>';
+      areas.forEach(a => {
+        const opt = document.createElement("option");
+        opt.value = a;
+        opt.textContent = a;
+        select.appendChild(opt);
+      });
+    }
+
+    // 3. Fetch all Locations with Demo Fallback
     async function fetchLocations() {
       try {
         const res = await fetch(`${API_BASE}/api/locations`);
-        if (!res.ok) throw new Error("API error: " + res.status);
+        if (!res.ok) throw new Error("API status: " + res.status);
         allLocations = await res.json();
-        applyFilters();
+        document.getElementById("demoBanner").style.display = "none";
       } catch (e) {
-        console.error("Failed to fetch locations:", e);
-        document.getElementById("cardsContainer").innerHTML = `
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-            <p><strong>Cannot reach Smart Queue backend.</strong><br>Ensure uvicorn is running on port 8000.</p>
-          </div>
-        `;
+        console.warn("Backend API unavailable. Running with rich demo dataset.", e);
+        allLocations = DEMO_LOCATIONS;
+        document.getElementById("demoBanner").style.display = "flex";
+      }
+      loadAreas();
+      applyFilters();
+      if (map) {
+        setTimeout(() => map.invalidateSize(), 200);
       }
     }
 
@@ -1306,35 +1615,79 @@
       rushPill.textContent = `${rush.toUpperCase()} CROWD`;
 
       // Occupancy Progress
-      const pct = Math.min(100, Math.round((loc.current_count / loc.capacity) * 100));
-      document.getElementById("detailCapacityLabel").textContent = `${loc.current_count} / ${loc.capacity} seats occupied (${pct}%)`;
+      const pct = Math.min(100, Math.round(((loc.current_count || 10) / (loc.capacity || 50)) * 100));
+      document.getElementById("detailCapacityLabel").textContent = `${loc.current_count || 10} / ${loc.capacity || 50} seats occupied (${pct}%)`;
       const fill = document.getElementById("detailProgressBar");
       fill.style.width = `${pct}%`;
-      fill.style.background = rush === 'Low' ? 'var(--wait-low)' : (rush === 'Medium' ? 'var(--wait-med)' : 'var(--wait-high)');
+      const rLower = (rush || 'low').toLowerCase();
+      fill.style.background = (rLower === 'low') ? 'var(--wait-low)' : ((rLower === 'medium' || rLower === 'med') ? 'var(--wait-med)' : 'var(--wait-high)');
+    }
 
-      // Last updated
-            },
-            scales: {
-              x: {
-                grid: { display: false },
-                ticks: {
-                  color: '#5f6368',
-                  font: { size: 10 },
-                  maxRotation: 0,
-                  autoSkip: true,
-                  maxTicksLimit: 8
-                }
-              },
-              y: {
-                grid: { color: '#f1f3f4' },
-                ticks: { color: '#5f6368', font: { size: 10 } }
+    // 9. Load Hourly Wait-Time / Rush Forecast Chart
+    async function loadHourlyChart(locationId) {
+      const canvas = document.getElementById("rushChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      let labels = ["11 AM", "12 PM", "1 PM", "2 PM", "5 PM", "6 PM", "7 PM", "8 PM", "9 PM"];
+      let waitData = [8, 22, 35, 14, 10, 28, 42, 38, 18];
+
+      try {
+        const res = await fetch(`${API_BASE}/api/history/${locationId}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.hourly && json.hourly.length) {
+            labels = json.hourly.map(h => h.hour_label || `${h.hour}:00`);
+            waitData = json.hourly.map(h => h.estimated_wait || h.wait_minutes || h.count);
+          }
+        }
+      } catch (e) {
+        // Fallback curve
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Expected Wait (mins)",
+            data: waitData,
+            borderColor: "#1a73e8",
+            backgroundColor: "rgba(26, 115, 232, 0.12)",
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: "#1a73e8",
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#5f6368',
+                font: { size: 10 },
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 8
               }
+            },
+            y: {
+              grid: { color: '#f1f3f4' },
+              ticks: { color: '#5f6368', font: { size: 10 } }
             }
           }
-        });
-      } catch (e) {
-        console.error("Failed to load chart data:", e);
-      }
+        }
+      });
     }
 
     // 10. Back to Restaurant List
@@ -1430,12 +1783,50 @@
       }
     }, 1000);
 
+    // API Settings Modal Handlers
+    function openApiModal() {
+      const input = document.getElementById("apiUrlInput");
+      input.value = localStorage.getItem("SMART_QUEUE_API_URL") || "";
+      document.getElementById("apiModal").classList.add("active");
+    }
+    function closeApiModal() {
+      document.getElementById("apiModal").classList.remove("active");
+    }
+    function saveApiUrl() {
+      const val = document.getElementById("apiUrlInput").value.trim().replace(/\/$/, "");
+      if (val) {
+        localStorage.setItem("SMART_QUEUE_API_URL", val);
+      } else {
+        localStorage.removeItem("SMART_QUEUE_API_URL");
+      }
+      closeApiModal();
+      window.location.reload();
+    }
+    function resetToDemo() {
+      localStorage.removeItem("SMART_QUEUE_API_URL");
+      closeApiModal();
+      window.location.reload();
+    }
+
     // Initial Startup
     window.addEventListener('DOMContentLoaded', async () => {
       initMap();
-      await loadAreas();
       await fetchLocations();
     });
   </script>
+
+  <!-- API Settings Modal -->
+  <div class="modal-overlay" id="apiModal">
+    <div class="modal-box">
+      <h3>⚙️ Backend API Configuration</h3>
+      <p>Connect this live map to your FastAPI backend (e.g. Render server or localhost:8000).</p>
+      <input type="text" id="apiUrlInput" placeholder="https://your-service.onrender.com or http://127.0.0.1:8000">
+      <div class="modal-actions">
+        <button class="modal-btn outline" onclick="resetToDemo()">Use Demo Data</button>
+        <button class="modal-btn outline" onclick="closeApiModal()">Cancel</button>
+        <button class="modal-btn primary" onclick="saveApiUrl()">Save & Connect</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

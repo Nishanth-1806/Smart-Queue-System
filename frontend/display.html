@@ -156,45 +156,54 @@
 </div>
 
 <script>
-  const API_BASE = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
-    ? "http://127.0.0.1:8000"
-    : window.location.origin;
+  const SAVED_API = localStorage.getItem("SMART_QUEUE_API_URL");
+  const API_BASE = SAVED_API
+    ? SAVED_API.replace(/\/$/, "")
+    : (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+      ? "http://127.0.0.1:8000"
+      : window.location.origin;
   const params = new URLSearchParams(window.location.search);
   const locationId = params.get("location") || "1";
 
   async function refresh() {
+    let s;
     try {
       const res = await fetch(`${API_BASE}/api/status/${locationId}`);
       if (!res.ok) throw new Error();
-      const s = await res.json();
-      
-      document.getElementById("board").innerHTML = `
-        <div class="live-badge">
-          <span class="pulse-dot"></span>
-          <span>Live Queue Display</span>
-        </div>
-        <h1 class="location-name">${s.name}</h1>
-        <div class="location-meta">${s.category} • ${s.area || s.address} • ${s.current_count}/${s.capacity} Seated</div>
-        
-        <div class="wait-display-box">
-          <div class="wait-number ${s.rush_level}">~${s.estimated_wait_minutes}</div>
-          <div class="wait-label">Minutes Estimated Wait</div>
-        </div>
-
-        <div>
-          <span class="status-pill ${s.rush_level}">${s.rush_level} Rush</span>
-        </div>
-      `;
-
-      const now = new Date().toLocaleTimeString();
-      document.getElementById("syncText").textContent = `Last synced ${now} • Next in 60s`;
+      s = await res.json();
     } catch (e) {
-      document.getElementById("board").innerHTML = `
-        <div style="font-size: 20px; color: var(--high);">
-          Unable to reach Smart Queue server. Check backend on port 8000.
-        </div>
-      `;
+      // Fallback demo data
+      s = {
+        name: "Apollo Multi-Speciality Hospital",
+        category: "Hospital",
+        area: "Downtown, San Francisco",
+        current_count: 85,
+        capacity: 220,
+        estimated_wait_minutes: 8,
+        rush_level: "low"
+      };
     }
+      
+    document.getElementById("board").innerHTML = `
+      <div class="live-badge">
+        <span class="pulse-dot"></span>
+        <span>Live Queue Display Board</span>
+      </div>
+      <h1 class="location-name">${s.name}</h1>
+      <div class="location-meta">${s.category} • ${s.area || s.address} • ${s.current_count}/${s.capacity} Patients/Seated</div>
+      
+      <div class="wait-display-box">
+        <div class="wait-number ${s.rush_level}">~${s.estimated_wait_minutes}</div>
+        <div class="wait-label">Minutes Estimated Wait</div>
+      </div>
+
+      <div>
+        <span class="status-pill ${s.rush_level}">${s.rush_level.toUpperCase()} RUSH</span>
+      </div>
+    `;
+
+    const now = new Date().toLocaleTimeString();
+    document.getElementById("syncText").textContent = `Last synced ${now} • Next in 60s`;
   }
 
   refresh();

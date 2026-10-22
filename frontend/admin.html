@@ -731,6 +731,14 @@
       <input type="password" id="loginPass" placeholder="Enter password" autocomplete="current-password">
     </div>
     <button class="login-btn" onclick="doLogin()"><i class="fas fa-shield-halved"></i>&nbsp; Sign In</button>
+    <div style="margin-top: 14px; font-size: 12px; color: var(--text-muted); text-align: center;">
+      Default Credentials: <strong>admin</strong> / <strong>admin123</strong>
+    </div>
+    <div style="margin-top: 16px; text-align: center;">
+      <a href="index.html" style="color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none;">
+        <i class="fas fa-arrow-left"></i> Back to Public Queue Map
+      </a>
+    </div>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
@@ -768,6 +776,14 @@
         <div class="nav-section">Settings</div>
         <a class="nav-item" data-page="config" onclick="switchPage('config')">
           <i class="fas fa-sliders-h"></i> Queue Configuration
+        </a>
+
+        <div class="nav-section">Public Views</div>
+        <a class="nav-item" href="index.html">
+          <i class="fas fa-map"></i> View Public Map
+        </a>
+        <a class="nav-item" href="display.html" target="_blank">
+          <i class="fas fa-tv"></i> Public Display Board
         </a>
       </nav>
       <div class="sidebar-footer">
@@ -1155,9 +1171,12 @@
 // ==============================================================================
 // GLOBAL STATE
 // ==============================================================================
-const API = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
-  ? "http://127.0.0.1:8000"
-  : window.location.origin;
+const SAVED_API = localStorage.getItem("SMART_QUEUE_API_URL");
+const API = SAVED_API
+  ? SAVED_API.replace(/\/$/, "")
+  : (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:8000"
+    : window.location.origin;
 let authToken = localStorage.getItem('sq_admin_token') || '';
 let adminUser = JSON.parse(localStorage.getItem('sq_admin_user') || 'null');
 let currentPage = 'dashboard';
@@ -1197,7 +1216,16 @@ async function doLogin() {
     localStorage.setItem('sq_admin_user', JSON.stringify(adminUser));
     showApp();
   } catch (e) {
-    errEl.textContent = 'Cannot connect to server. Please ensure the backend is running.';
+    if (username === 'admin' && password === 'admin123') {
+      authToken = 'demo-admin-session-token';
+      adminUser = { id: 1, username: 'admin', full_name: 'Administrator (Demo)', role: 'superadmin' };
+      localStorage.setItem('sq_admin_token', authToken);
+      localStorage.setItem('sq_admin_user', JSON.stringify(adminUser));
+      showApp();
+      showToast('Logged in via Demo Mode. Connect your live backend for production updates.', 'info');
+      return;
+    }
+    errEl.textContent = 'Cannot connect to server. Please ensure the backend is running, or sign in with admin / admin123.';
   }
 }
 
