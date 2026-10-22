@@ -23,7 +23,9 @@ from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-DB_PATH = Path(__file__).parent / "smart_queue.db"
+# On Vercel, only /tmp is writable. Allow override via env var.
+_db_env = os.environ.get("SMART_QUEUE_DB_PATH", "")
+DB_PATH = Path(_db_env) if _db_env else Path(__file__).parent / "smart_queue.db"
 SECRET_KEY = os.environ.get("SMART_QUEUE_SECRET", "smart-queue-secret-key-2026-production-ready")
 
 # Resolve frontend directory (works both locally and on Render)
@@ -43,6 +45,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup_event():
+    """Auto-initialize DB on startup (critical for Vercel /tmp cold starts)."""
+    init_db()
+    # Seed only if DB is empty (first cold start on Vercel)
+    try:
+        with get_db() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM locations").fetchone()[0]
+            if count == 0:
+                import sys
+                from pathlib import Path as _P
+                seed_file = _P(__file__).parent / "seed_data.py"
+                if seed_file.exists():
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("seed_data", seed_file)
+                    mod  = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+    except Exception:
+        pass  # DB already seeded or seed not available
+
 
 
 # ---------- Database Utilities & Context Manager ----------

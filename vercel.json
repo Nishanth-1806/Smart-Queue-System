@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "50mb" }
+    },
+    {
+      "src": "frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/docs",     "dest": "/api/index.py" },
+    { "src": "/openapi.json", "dest": "/api/index.py" },
+    { "src": "/admin",    "dest": "/frontend/admin.html" },
+    { "src": "/admin.html","dest": "/frontend/admin.html" },
+    { "src": "/display",  "dest": "/frontend/display.html" },
+    { "src": "/display.html","dest": "/frontend/display.html" },
+    { "src": "/",         "dest": "/frontend/index.html" },
+    { "src": "/(.*)",     "dest": "/frontend/$1" }
+  ],
+  "env": {
+    "VERCEL": "1",
+    "SMART_QUEUE_DB_PATH": "/tmp/smart_queue.db"
+  }
+}
